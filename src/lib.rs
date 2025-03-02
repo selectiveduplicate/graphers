@@ -1,5 +1,10 @@
+//! A graph algorithms library for learning purposes.
 use std::collections::HashMap;
+pub mod errors;
 
+use errors::GraphError;
+
+/// A weighted edge in a graph between two nodes.
 pub struct Edge {
     from_node: u32,
     to_node: u32,
@@ -7,6 +12,7 @@ pub struct Edge {
 }
 
 impl Edge {
+    /// Creates a new edge with weight betweeen two nodes.
     pub fn new(from_node: u32, to_node: u32, weight: f32) -> Self {
         Self {
             from_node,
@@ -16,6 +22,10 @@ impl Edge {
     }
 }
 
+/// A node or vertex in a graph with an index number.
+/// Its edges are represented as an adjacency list, implemented as a hash map.
+/// Each key of the hash map represents the index of number of the node it connects
+/// to. The value contains the [`Edge`] object.
 pub struct Node<T> {
     pub idx: u32,
     pub edges: HashMap<u32, Edge>,
@@ -53,7 +63,6 @@ impl<T> Node<T> {
     ///     name: String,
     /// }
     ///
-    ///
     /// let label = Cart { amount: 510.50, name: String::from("Alex Jones")};
     /// let labelled_node = Node::with_label(0, label);
     /// assert_eq!(labelled_node.idx, 0);
@@ -75,8 +84,8 @@ impl<T> Node<T> {
         self.edges.get(&neighbor)
     }
     /// Connects an edge between this node and the `neighbor` node.
-    /// If the source node already has an edge to a neighbor node, 
-    /// it updates the edge data and returns the old edge value. 
+    /// If the source node already has an edge to a neighbor node,
+    /// it updates the edge data and returns the old edge value.
     /// Otherwise returns `None`.
     pub fn add_edge(&mut self, neighbor: u32, weight: f32) -> Option<Edge> {
         let new_edge = Edge::new(self.idx, neighbor, weight);
@@ -109,23 +118,44 @@ impl<T> Graph<T> {
         }
     }
     /// Inserts an edge between two nodes in the graph.
-    pub fn insert_edge(&mut self, from: u32, to: u32, weight: f32) -> Option<Edge> {
+    /// If the edge already exists, updates the edge details and returns the
+    /// old value. Otherwise returns `Ok(None)`.
+    pub fn insert_edge(
+        &mut self,
+        from: u32,
+        to: u32,
+        weight: f32,
+    ) -> Result<Option<Edge>, GraphError> {
         if let Some(src_node_idx) = self.nodes.iter().position(|n| n.idx == from) {
-            self.nodes[src_node_idx].add_edge(to, weight)
+            Ok(self.nodes[src_node_idx].add_edge(to, weight))
         } else {
-            //TODO: None is returned for two success cases, so should do something 
-            //like make an error enum when None is returned for nonexistent 
-            //nodes like here
-            None
+            Err(GraphError::MissingNode)
         }
-        //let src_node_idx = self.nodes.partition_point(|node| node.idx == from) - 1;
     }
+    /// Inserts a node in the graph.
     pub fn insert_node(&mut self, node: Node<T>) -> bool {
         if self.nodes.len() == self.capacity {
             false
         } else {
             self.nodes.push(node);
             true
+        }
+    }
+    /// Check if a node exists in the graph by its index number.
+    pub fn has_node(&self, idx: u32) -> bool {
+        self.nodes.iter().any(|n| n.idx == idx)
+    }
+    /// Checks if an edge exists between two nodes.
+    pub fn has_edge(&self, from: u32, to: u32) -> bool {
+        self.get_edge(from, to).is_some()
+    }
+    /// Returns a reference to the `Edge` object if it exists between two nodes
+    /// in the graph.
+    pub fn get_edge(&self, from: u32, to: u32) -> Option<&Edge> {
+        if let Some(src_node_idx) = self.nodes.iter().position(|n| n.idx == from) {
+            self.nodes[src_node_idx].get_edge(to)
+        } else {
+            None
         }
     }
 }
@@ -173,13 +203,46 @@ mod tests {
         let node_20: Node<String> = Node::with_label(20, String::from("Furniture"));
         let node_30: Node<String> = Node::with_label(30, String::from("Laptop"));
         let node_40: Node<String> = Node::with_label(40, String::from("Clock"));
+    }
+
+    #[test]
+    fn test_creating_edges_in_graph() {
+        let mut graph: Graph<String> = Graph::new(5, false);
+        assert_eq!(graph.capacity, 5);
+
+        let node_20: Node<String> = Node::with_label(20, String::from("Furniture"));
+        let node_30: Node<String> = Node::with_label(30, String::from("Laptop"));
+        let node_40: Node<String> = Node::with_label(40, String::from("Clock"));
 
         graph.insert_node(node_20);
         graph.insert_node(node_30);
         graph.insert_node(node_40);
-        
+
         let edge = graph.insert_edge(40, 20, 1012.10);
-        assert!(edge.is_none());
+        assert!(edge.unwrap().is_none());
         assert_eq!(graph.nodes.len(), 3);
+
+        // Let's test the inserted edge
+        let inserted = graph.get_edge(40, 20).unwrap();
+        assert_eq!(inserted.from_node, 40);
+        assert_eq!(inserted.to_node, 20);
+        assert_eq!(inserted.weight, 1012.10);
+    }
+
+    #[test]
+    fn test_has_node() {
+        let mut graph: Graph<String> = Graph::new(5, false);
+        assert_eq!(graph.capacity, 5);
+
+        let node_20: Node<String> = Node::with_label(20, String::from("Furniture"));
+        let node_30: Node<String> = Node::with_label(30, String::from("Laptop"));
+        let node_40: Node<String> = Node::with_label(40, String::from("Clock"));
+
+        graph.insert_node(node_20);
+        graph.insert_node(node_30);
+        graph.insert_node(node_40);
+
+        assert!(graph.has_node(30));
+        assert!(!graph.has_node(400));
     }
 }
