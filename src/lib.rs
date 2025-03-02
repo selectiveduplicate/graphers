@@ -133,12 +133,12 @@ impl<T> Graph<T> {
         }
     }
     /// Inserts a node in the graph.
-    pub fn insert_node(&mut self, node: Node<T>) -> bool {
+    pub fn insert_node(&mut self, node: Node<T>) -> Result<(), GraphError> {
         if self.nodes.len() == self.capacity {
-            false
+            Err(GraphError::CapacityExceeded)
         } else {
             self.nodes.push(node);
-            true
+            Ok(())
         }
     }
     /// Check if a node exists in the graph by its index number.
@@ -214,9 +214,9 @@ mod tests {
         let node_30: Node<String> = Node::with_label(30, String::from("Laptop"));
         let node_40: Node<String> = Node::with_label(40, String::from("Clock"));
 
-        graph.insert_node(node_20);
-        graph.insert_node(node_30);
-        graph.insert_node(node_40);
+        let _ = graph.insert_node(node_20);
+        let _ = graph.insert_node(node_30);
+        let _ = graph.insert_node(node_40);
 
         let edge = graph.insert_edge(40, 20, 1012.10);
         assert!(edge.unwrap().is_none());
@@ -238,11 +238,29 @@ mod tests {
         let node_30: Node<String> = Node::with_label(30, String::from("Laptop"));
         let node_40: Node<String> = Node::with_label(40, String::from("Clock"));
 
-        graph.insert_node(node_20);
-        graph.insert_node(node_30);
-        graph.insert_node(node_40);
+        let _ = graph.insert_node(node_20);
+        let _ = graph.insert_node(node_30);
+        let _ = graph.insert_node(node_40);
 
         assert!(graph.has_node(30));
         assert!(!graph.has_node(400));
+    }
+
+    #[test]
+    fn test_inserting_more_than_capacity() {
+        let mut graph: Graph<String> = Graph::new(2, false);
+        assert_eq!(graph.capacity, 2);
+
+        let node_20: Node<String> = Node::with_label(20, String::from("Furniture"));
+        let node_30: Node<String> = Node::with_label(30, String::from("Laptop"));
+        let node_40: Node<String> = Node::with_label(40, String::from("Clock"));
+
+        assert!(graph.insert_node(node_20).is_ok());
+        assert!(graph.insert_node(node_30).is_ok());
+        assert!(matches!(graph.insert_node(node_40).unwrap_err(), GraphError::CapacityExceeded));
+
+        assert!(graph.has_node(20));
+        assert!(graph.has_node(30));
+        assert!(!graph.has_node(40));
     }
 }
