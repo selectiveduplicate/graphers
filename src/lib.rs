@@ -117,6 +117,14 @@ impl<T> Graph<T> {
             undirected,
         }
     }
+    /// Returns `true` if the graph contains no nodes.
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+    /// Returns the number of nodes in the graph.
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
     /// Inserts an edge between two nodes in the graph.
     /// If the edge already exists, updates the edge details and returns the
     /// old value. Otherwise returns `Ok(None)`.
@@ -157,6 +165,24 @@ impl<T> Graph<T> {
         } else {
             None
         }
+    }
+    /// Checks whether an edge exists between two nodes in the graph.
+    pub fn is_edge(&self, from: u32, to: u32) -> bool {
+        self.get_edge(from, to).is_some()
+    }
+    /// Removes an edge between the two specified nodes.
+    /// Returns the index of the neighbor node and the edge value if the edge
+    /// existed between the two nodes.
+    pub fn remove_edge(&mut self, from: u32, to: u32) -> Option<(u32, Edge)> {
+        if !self.has_node(from) || !self.has_node(to) {
+            return None;
+        }
+        let node = self.get_node_mut(from).unwrap();
+        node.remove_edge(to)
+    }
+    fn get_node_mut(&mut self, idx: u32) -> Option<&mut Node<T>> {
+        let pos = self.nodes.iter().position(|n| n.idx == idx).unwrap();
+        self.nodes.get_mut(pos)
     }
 }
 
@@ -257,10 +283,55 @@ mod tests {
 
         assert!(graph.insert_node(node_20).is_ok());
         assert!(graph.insert_node(node_30).is_ok());
-        assert!(matches!(graph.insert_node(node_40).unwrap_err(), GraphError::CapacityExceeded));
+        assert!(matches!(
+            graph.insert_node(node_40).unwrap_err(),
+            GraphError::CapacityExceeded
+        ));
 
         assert!(graph.has_node(20));
         assert!(graph.has_node(30));
         assert!(!graph.has_node(40));
+    }
+
+    #[test]
+    fn test_edge_exists() {
+        let mut graph: Graph<String> = Graph::new(5, false);
+
+        let node_20: Node<String> = Node::with_label(20, String::from("Furniture"));
+        let node_30: Node<String> = Node::with_label(30, String::from("Laptop"));
+        let node_40: Node<String> = Node::with_label(40, String::from("Clock"));
+
+        let _ = graph.insert_node(node_20);
+        let _ = graph.insert_node(node_30);
+        let _ = graph.insert_node(node_40);
+
+        let _ = graph.insert_edge(40, 20, 1012.10);
+        assert!(graph.is_edge(40, 20));
+    }
+
+    #[test]
+    fn test_edge_removal() {
+        let mut graph: Graph<String> = Graph::new(5, false);
+
+        let node_20: Node<String> = Node::with_label(20, String::from("Furniture"));
+        let node_30: Node<String> = Node::with_label(30, String::from("Laptop"));
+        let node_40: Node<String> = Node::with_label(40, String::from("Clock"));
+        let node_2024: Node<String> = Node::with_label(2024, String::from("Year"));
+
+        let _ = graph.insert_node(node_20);
+        let _ = graph.insert_node(node_30);
+        let _ = graph.insert_node(node_40);
+        let _ = graph.insert_node(node_2024);
+
+        let _ = graph.insert_edge(40, 20, 1012.10);
+        let _ = graph.insert_edge(40, 30, 99.0);
+
+        assert!(graph.remove_edge(40, 2024).is_none());
+        let result = graph.remove_edge(40, 20).unwrap();
+
+        assert_eq!(result.0, 20);
+        assert_eq!(result.1.from_node, 40);
+        assert_eq!(result.1.to_node, 20);
+        assert_eq!(result.1.weight, 1012.10);
     }
 }
